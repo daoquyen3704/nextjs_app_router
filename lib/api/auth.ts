@@ -17,7 +17,6 @@ export async function loginApi(payload: LoginPayload): Promise<LoginResponse> {
   return data;
 }
 
-// ─── Register ──────────────────────────────────────────────────────────────
 export type RegisterPayload = {
   username: string;
   email: string;
@@ -40,7 +39,7 @@ export async function registerApi(payload: RegisterPayload): Promise<void> {
   }
 }
 
-// ─── Refresh Access Token ───────────────────────────────────────────────────
+
 // Trả về access token mới, hoặc throw nếu refresh token cũng hết hạn
 async function refreshAccessToken(): Promise<string> {
   const refresh = localStorage.getItem('refresh_token');
@@ -70,7 +69,7 @@ async function refreshAccessToken(): Promise<string> {
   return data.access;
 }
 
-// ─── authFetch — wrapper tự động refresh token ─────────────────────────────
+
 // Dùng hàm này thay cho fetch() trong mọi API call cần xác thực
 export async function authFetch(
   url: string,

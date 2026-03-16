@@ -26,15 +26,40 @@ export default function UploadManager() {
   async function runUpload(file:File) {
     const jobId = Math.random().toString(36).substring(7);
     const isMultiPart =  file.size > (5 * 1024 * 1024);
-
+    const totalParts = Math.ceil(file.size / (5 * 1024 * 1024));
     // them job mới vào
-    const newJob = {id: jobId, file, status: 'uploading', progress: 0, mode: isMultiPart ? 'multipart': 'single'}
+    const newJob = {
+      id: jobId, 
+      file, 
+      status: 'uploading', 
+      progress: 0, 
+      mode: isMultiPart ? 'multipart': 'single',
+      parts: Array.from({ length: totalParts }, (_, i) => ({ number: i + 1, done: false }))
+    }
     setJobs(prev => [...prev, newJob]);
     try {
-      const { key } = await smartUpload(file, (pct) => {
-        updateJob(jobId, {progress: pct})
+      const { key } = await smartUpload(file, (pct, partInfo) => {
+        if (partInfo) {
+          setJobs(prev => prev.map(j => {
+            if (j.id !== jobId) return j;
+            return {
+              ...j,
+              progress: pct, 
+              parts: j.parts.map((p: any) => 
+                p.number < partInfo.currentPart ? { ...p, done: true } : p
+              )
+            }
+          }))
+        } else {
+          updateJob(jobId, { progress: pct })
+        }
       })
-      updateJob(jobId, {status: 'done', progress: 100, resultKey: key})
+      updateJob(jobId, {
+        status: 'done', 
+        progress: 100, 
+        resultKey: key,
+        parts: newJob.parts.map(p => ({...p, done: true}))
+      })
     } catch(err: any) {
       updateJob(jobId, {status: 'error', errorMessage: err.message})
     }
@@ -111,7 +136,22 @@ export default function UploadManager() {
                   )}
                 </div>
               </div>
-
+              {job.mode === "multipart" && job.parts && (
+                <div className='d-flex flex-wrap gap-1 mb-2 mt-1'>
+                  {job.parts.map((part: any) => (
+                    <div
+                      key={part.number}
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '2px',
+                        backgroundColor: part.done ? '#28a745' : '#e9ecef',
+                        border: '1px solid #dee2e6'
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
               {/* Progress bar */}
               {job.status === 'uploading' && (
                 <div>
@@ -131,11 +171,10 @@ export default function UploadManager() {
                   </div>
                 </div>
               )}
-              
               {/* Thông báo lỗi */}
               {job.status === 'error' && (
                 <div className="text-danger mt-1" style={{ fontSize: 12 }}>
-                  {job.errorMsg}
+                  {job.errorMessage}
                 </div>
               )}
 
